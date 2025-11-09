@@ -1,0 +1,167 @@
+
+/**
+ * The MyALU. is the ALU of YOUR OWN design that provides the same functions as in the Nand2Tetris project + additional functions (and uses different control bits.
+ * Computes one of the following functions:
+ * x+y, x-y, y-x, 0, 1, -1, x, y, -x, -y, !x, !y,
+ * x+1, y+1, x-1, y-1, x&y, x|y , x XOR y, x NXOR y on two 16-bit inputs, 
+ * according to 6 input bits denoted zx,nx,zy,ny,f,no.
+ * In addition, the ALU computes two 1-bit outputs:
+ * if the ALU output == 0, zr is set to 1; otherwise zr is set to 0;
+ * if the ALU output < 0, ng is set to 1; otherwise ng is set to 0.
+ */
+
+// Implementation: the ALU logic manipulates the x and y inputs
+
+
+CHIP MyALU {
+    IN  
+        x[16], y[16],  // 16-bit inputs        
+        C0, // Control Bit 0 (Least significant) 
+        C1, // Control Bit 1
+        C2, // Control Bit 2
+        C3,  // Control Bit 3
+	C4;  // Control Bit 4 (Most significant - 5th Control bit)
+        
+
+    OUT 
+        out[16], // 16-bit output
+        zr, // 1 if (out == 0), 0 otherwise
+        ng; // 1 if (out < 0),  0 otherwise
+
+    PARTS:
+   	
+
+
+//Group-1 operations 	
+// ----------------------------------------------------------------
+    //Function 1: (Output is 0)
+    Or16(a=false, b=false, out=zero);
+
+    //Function 2: (Output is -1)
+    //Process: Negate the output of function 1
+    Not16(in=zero, out=minusOne);
+
+    //Function 3: (Output is +1)
+    //+1 = First bit true, all other 15 bits are false, we use the custom made One16 chip
+    One16(out=PlusOne);
+
+    //Function 4: (Output is negation of X)
+    Not16(in=x, out=notX);
+
+    //Function 5: (Output is negation of Y)
+    Not16(in=y, out=notY);
+
+    //Function 6: (Output is X)
+    Not16(in=notX, out=X);
+    
+    //Function 7: (Output is Y)
+    Not16(in=notY, out=Y);
+
+    //Function 8: (Output is -X)
+    Add16(a=notX, b=PlusOne, out=negativeX);
+
+
+
+//Group-2 Operations 
+// ----------------------------------------------------------------
+    //Function 9: (Output is -Y)
+    Add16(a=notY, b=PlusOne, out=negativeY);
+
+
+   //Function 10: (Output is X+1)
+   Add16(a=x, b=PlusOne, out=XPlusOne);
+
+   //Function 11: (Output is Y+1)
+   Add16(a=y, b=PlusOne, out=YPlusOne);
+
+   //Function 12: (Output is X-1)
+   Add16(a=x, b=minusOne, out=XMinusOne);
+
+   //Function 13: (Output is Y-1)
+   Add16(a=y, b=minusOne, out=YMinusOne);
+
+   //Function 14: (Output is X+Y)
+   Add16(a=x, b=y, out=XPlusY);
+
+   //Function 15: (Output is X-Y)
+   Add16(a=x, b=negativeY, out=XMinusY);
+
+   //Function 16: (Output is Y-X)
+   Add16(a=y, b=negativeX, out=YMinusX);
+
+
+//Group-3 operations
+// ----------------------------------------------------------------
+    And16(a=x, b=y, out=xAndY);
+    Or16(a=x, b=y, out=xOrY);
+    Xor16(a=x, b=y, out=xXorY);
+    Not16(in=xXorY, out=xXnorY);
+
+
+
+
+//Group-1 operation selector MUX
+// ----------------------------------------------------------------
+    Mux8Way16(
+        a=zero,    
+        b=PlusOne,      
+        c=minusOne, 
+        d=X,        
+        e=Y,        
+        f=notX,     
+        g=notY,     
+        h=negativeX,     
+        sel[2]=C2, sel[1]=C1, sel[0]=C0,
+        out=group1
+    );
+
+//Group-2 operation selector MUX
+// ----------------------------------------------------------------
+    Mux8Way16(
+        a=negativeY,     // 01000
+        b=XPlusOne,   // 01001
+        c=YPlusOne,   // 01010
+        d=XMinusOne,  // 01011
+        e=YMinusOne,  // 01100
+        f=XPlusY,   // 01101
+        g=XMinusY,  // 01110
+        h=YMinusX,  // 01111
+        sel[2]=C2, sel[1]=C1, sel[0]=C0,
+        out=group2
+    );
+
+
+//Group-3 operation selector MUX
+// ----------------------------------------------------------------
+    Mux4Way16(
+        a=xAndY,    // 10000
+        b=xOrY,     // 10001
+        c=xXorY,    // 10010
+        d=xXnorY,   // 10011
+        sel[1]=C1, sel[0]=C0,
+        out=group3
+    );
+
+
+
+// Final 4-way Mux to choose between groups
+// C4 and C3 select group:
+// 00 = group1, 01 = group2, 10 = group3
+// ----------------------------------------------------------------
+
+    Mux4Way16(
+        a=group1,
+        b=group2,
+        c=group3,
+        d=zero,
+        sel[1]=C4, sel[0]=C3,
+        out=out
+    );
+
+
+//Control Bit Format: C4C3C2C1C0 
+
+
+
+	
+}
